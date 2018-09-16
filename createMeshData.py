@@ -1,4 +1,5 @@
 import pygmsh
+import os
 import functools
 from functools import reduce
 import math
@@ -34,7 +35,10 @@ def siatka(w, l_list, d_list, epsilon, lcar):
     list_top.reverse()
     geom.add_polygon(list_down + list_top, lcar=lcar)#0.25 is quite decent
     geom.add_raw_code('Mesh.Algorithm=3;')
-    points, cells, point_data, cell_data, field_data = pygmsh.generate_mesh(geom ,gmsh_path='C:\\Users\\Asus\\Downloads\\gmsh-3.0.6-Windows64\\gmsh-3.0.6-Windows64\\gmsh.exe')
+    if os.name == 'posix':
+        points, cells, point_data, cell_data, field_data = pygmsh.generate_mesh(geom )
+    else:
+        points, cells, point_data, cell_data, field_data = pygmsh.generate_mesh(geom ,gmsh_path='C:\\Users\\Asus\\Downloads\\gmsh-3.0.6-Windows64\\gmsh-3.0.6-Windows64\\gmsh.exe')
     return (points, cells, point_data, cell_data, field_data, list_down + list_top)
 
 def distance(pointA, pointB):
