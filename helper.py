@@ -1,4 +1,5 @@
 import pygmsh
+from pathlib import Path
 import os
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
@@ -147,70 +148,72 @@ def get_characteristic(width, lsList, dList, epsilon, lcar):
 
     meshio.write_points_cells('testz.vtk', points, cells)
 
-    directory = './MatlabGen/Siatka/'
 
-    file = open(directory + "points.txt", "w")
+
+    directory = Path('./MatlabGen/Siatka/')
+
+    file = open(directory / "points.txt", "w")
     for point in points:
         for coord in point:
             file.write("%s " % coord)
         file.write("\n")
 
-    file = open(directory + "trian.txt", "w")
+    file = open(directory / "trian.txt", "w")
     for trian in cells['triangle']:
         for point in trian:
             file.write("%s " % point)
         file.write("\n")
 
-    file = open(directory + "enter.txt", "w")
+    file = open(directory / "enter.txt", "w")
     for point in enterPoints:
         for coord in point:
             file.write("%s " % coord)
         file.write("\n")
 
-    file = open(directory + "exit.txt", "w")
+    file = open(directory / "exit.txt", "w")
     for point in exitPoints:
         for coord in point:
             file.write("%s " % coord)
         file.write("\n")
 
-    file = open(directory + "bound.txt", "w")
+    file = open(directory / "bound.txt", "w")
     for point in boundPoints:
         for coord in point:
             file.write("%s " % coord)
         file.write("\n")
 
-    file = open(directory + "free.txt", "w")
+    file = open(directory / "free.txt", "w")
     for point in freePoints:
         for coord in point:
             file.write("%s " % coord)
         file.write("\n")
 
-    file = open(directory + "enterIndx.txt", "w")
+    file = open(directory / "enterIndx.txt", "w")
     for point in enterIndx:
         file.write("%s" % point)
         file.write("\n")
 
-    file = open(directory + "exitIndx.txt", "w")
+    file = open(directory / "exitIndx.txt", "w")
     for point in exitIndx:
         file.write("%s" % point)
         file.write("\n")
 
-    file = open(directory + "boundIndx.txt", "w")
+    file = open(directory / "boundIndx.txt", "w")
     for point in boundIndx:
         file.write("%s" % point)
         file.write("\n")
 
-    file = open(directory + "freeIndx.txt", "w")
+    file = open(directory / "freeIndx.txt", "w")
     for point in freeIndx:
         file.write("%s" % point)
         file.write("\n")
 
-    matlab_procces = Popen(["octave", "main.m"], cwd="./MatlabGen")
+    matlab_procces = Popen(["octave", "main.m"], cwd=Path("./MatlabGen"))
     matlab_procces.wait()
 
-    S1 = np.genfromtxt("./MatlabGen/S11.csv", delimiter=',')
-    S2 = np.genfromtxt("./MatlabGen/S22.csv", delimiter=',')
-    f = np.genfromtxt("./MatlabGen/f.csv", delimiter=',')
+    S1 = np.genfromtxt(Path("./MatlabGen")/'S11.csv', delimiter=',')
+    S2 = np.genfromtxt(Path("./MatlabGen")/'S22.csv', delimiter=',')
+    f = np.genfromtxt(Path('./MatlabGen') / 'f.csv', delimiter=',')
     return S1, S2, f
 
 
@@ -245,11 +248,13 @@ if __name__ == "__main__":
     dList = [d13, d2, d13]
     f1_, f2_, freq = get_characteristic(width, lsList, dList, epsilon, lcar)
 
+    print('inne')
+    f1_, f2_, freq = get_characteristic(width, lsList, dList, epsilon, lcar)
     dList = [d13, d2, d13]
     f1__, f2__, freq = get_characteristic(width, lsList, dList, epsilon, lcar)
     print("f1-f1_mod")
     print(np.sum(np.absolute(f1 - f1_mod) + np.absolute(f2 - f2_mod)))
     print("f1-f1_")
     print(np.sum(np.absolute(f1 - f1_) + np.absolute(f2 - f2_)))
-    print("f1-f1__")
+    print("f1-f1_")
     print(np.sum(np.absolute(f1 - f1__) + np.absolute(f2 - f2__)))
