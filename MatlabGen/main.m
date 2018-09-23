@@ -5,7 +5,7 @@ close all
 Load_Points();
 load Tomasz_Mesh.mat
 
-siatka_plot=1;
+siatka_plot=0;
 
 %wyznaczenie macierzy C i T
 [C,T] = Macierz_C_T(mesh);
