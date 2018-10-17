@@ -7,6 +7,19 @@ import math
 import matplotlib.pyplot as plt
 from subprocess import Popen
 from random import random
+import pickle
+from threading import Thread, Lock
+from multiprocessing import Manager
+
+
+def save_obj(obj, name):
+    with open('./stored_objects/' + name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
+def load_obj(name):
+    with open('./stored_objects/' + name + '.pkl', 'rb') as f:
+        return pickle.load(f)
 
 
 def siatka(w, l_list, d_list, epsilon, lcar):
@@ -214,12 +227,27 @@ def get_characteristicc(width, lsList, dList, epsilon, lcar):
     return 10, 20, 30
 
 
+def get_characteristic_paralel(data, dvariable, lock_dict, dict, lock_counter,
+                               counter, max_iteration):
+    (width, lsList, epsilon, lcar, f1, f2) = data
+    for (d13, d2) in dvariable:
+        dList = [d13, d2, d13]
+        with lock_counter:
+            counter.value = counter.value + 1
+            print("iteracja numer :(%d / %d)" % (counter.value, max_iteration))
+        f1_mod, f2_mod, _ = get_characteristic(width, lsList, dList, epsilon,
+                                               lcar)
+        score = np.sum(np.absolute(f1 - f1_mod) + np.absolute(f2 - f2_mod))
+        s.append(score)
+        dict[score] = (d13, d2)
+
+
 if __name__ == "__main__":
 
     import meshio
 
     verbose = False
-    iteration = 13
+    iteration = 15
 
     width = 6.4
     lsList = [6.4, 3.2, 3.2, 6.4]
@@ -228,39 +256,50 @@ if __name__ == "__main__":
     dList = [d13, d2, d13]
     epsilon = 0.01
     lcar = 0.1
-
     f1, f2, freq = get_characteristic(width, lsList, dList, epsilon, lcar)
-    np.zeros(iteration)
+    data = (width, lsList, epsilon, lcar, f1, f2)
     # plt.plot(freq / 1e-9, f1[0], 'r')
     # plt.plot(freq / 1e-9, f2[0], 'b')
     # plt.show()
 
-    # d13_array = 3.3 + (np.random.rand(iteration, 1) - 0.5) * 3.4
     d13_array = np.linspace(2.0, 5.0, iteration)
-    # d2_array = 4.6 + (np.random.rand(iteration, 1) - 0.5) * 3.4
+    d13_array = np.append(d13_array, 3.3)
     d2_array = np.linspace(3.0, 6.0, iteration)
+    d2_array = np.append(d2_array, 4.6)
     D13, D2 = np.meshgrid(d13_array, d2_array)
     s = []
-    i = 0
-    for d13, d2 in zip(np.ravel(D13), np.ravel(D2)):
-        print("iteracja numer :(%d / %d)" % (i, iteration * iteration))
-        i += 1
-        dList = [d13, d2, d13]
-        f1_mod, f2_mod, _ = get_characteristic(width, lsList, dList, epsilon,
-                                               lcar)
-        s.append(np.sum(np.absolute(f1 - f1_mod) + np.absolute(f2 - f2_mod)))
-        if i % 5 == 0:
-            np.savetxt("scores.csv", np.array(s), delimiter=",")
+    roznica = 10
+    max_iteration = (iteration + 1)**2
 
-    S = np.array(s).reshape(D13.shape)
-    np.savetxt("D13.csv", D13, delimiter=",")
-    np.savetxt("D2.csv", D2, delimiter=",")
-    np.savetxt("S.csv", S, delimiter=",")
-    np.savetxt("D13_a.csv", d13_array, delimiter=",")
-    np.savetxt("D2_a.csv", d2_array, delimiter=",")
+    worker_number = 3
+    threads = [None for _ in range(worker_number)]
+
+    lock_dictionary = Lock()
+    lock_counter = Lock()
+    manager = Manager()
+    i = manager.Value('i', 0)
+    dict = manager.dict()
+    tuples = list(zip(np.ravel(D13), np.ravel(D2)))
+    indx = np.linspace(0, len(tuples), worker_number + 1, dtype=np.int32)
+    for worker in range(worker_number):
+        threads[worker] = Thread(
+            target=get_characteristic_paralel,
+            args=(data, tuples[indx[worker]:indx[worker + 1]], lock_dictionary,
+                  dict, lock_counter, i, max_iteration)).start()
+
+    save_obj(dict, 'dic')
+    S = np.zeros_like(D13)
+    d = dict.copy()
+    for key, value in d.items():
+        (k1, k2) = value
+        S[(D13 == k1) & (D2 == k2)] = key
+    S[S == 0] = np.nan
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.plot_surface(D13, D2, S)
+    np.savetxt('S.csv', S, delimiter=",")
+    np.savetxt('D13.csv', D13, delimiter=",")
+    np.savetxt('D2.csv', D2, delimiter=",")
     plt.savefig("./scores.png")
     plt.savefig("./scores.pdf")
-    # plt.show()
+    plt.show()
