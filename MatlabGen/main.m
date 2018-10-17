@@ -3,7 +3,7 @@ clc
 close all
 
 Load_Points();
-load Tomasz_Mesh.mat
+load Tomasz_Mesh
 
 siatka_plot=0;
 
