@@ -1,5 +1,8 @@
 function Load_Points()
 
+  ## IMPORTANT NOTE I have commented all the data... lines without it the matlab code
+  ## was crushing I don't know if I didnt destroy something :)
+
     data = dlmread('Siatka/trian.txt',' ');
     ## data(:,3)=[];
     mesh.t=data+1;
