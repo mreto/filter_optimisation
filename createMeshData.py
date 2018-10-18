@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from subprocess import Popen
 from random import random
 import pickle
-from threading import Thread, Lock
+from threading import Thread, Lock, current_thread
 from multiprocessing import Manager
 
 
@@ -133,93 +133,82 @@ def savePoints(variablesToSave,
 
 def get_characteristic(width, lsList, dList, epsilon, lcar):
 
+    import meshio
     (points, cells, point_data, cell_data, field_data, pList) = siatka(
         width, lsList, dList, epsilon, lcar)
-    if verbose:
-        print("Number of points:")
-        print(len(points))
-        print("Number of triangles:")
-        print(len(cells['triangle']))
 
     (enterPoints, exitPoints, boundPoints, freePoints, enterIndx, exitIndx,
      boundIndx, freeIndx) = groupPoints(points, pList, lsList, width)
 
-    if verbose:
-        print("Number of points in group 1 - enter points")
-        print(len(enterPoints))
-        print("Number of points in group 2 - exit points")
-        print(len(exitPoints))
-        print("Number of points in group 3 - bound points")
-        print(len(boundPoints))
-        print("Number of points in group 4 - free points")
-        print(len(freePoints))
-
     meshio.write_points_cells('testz.vtk', points, cells)
 
+    id = current_thread().getName()
     directory = './MatlabGen/Siatka/'
 
-    file = open(directory + "points.txt", "w")
+    file = open(directory + id + "_points.txt", "w")
     for point in points:
         for coord in point:
             file.write("%s " % coord)
         file.write("\n")
 
-    file = open(directory + "trian.txt", "w")
+    file = open(directory + id + "_trian.txt", "w")
     for trian in cells['triangle']:
         for point in trian:
             file.write("%s " % point)
         file.write("\n")
 
-    file = open(directory + "enter.txt", "w")
+    file = open(directory + id + "_enter.txt", "w")
     for point in enterPoints:
         for coord in point:
             file.write("%s " % coord)
         file.write("\n")
 
-    file = open(directory + "exit.txt", "w")
+    file = open(directory + id + "_exit.txt", "w")
     for point in exitPoints:
         for coord in point:
             file.write("%s " % coord)
         file.write("\n")
 
-    file = open(directory + "bound.txt", "w")
+    file = open(directory + id + "_bound.txt", "w")
     for point in boundPoints:
         for coord in point:
             file.write("%s " % coord)
         file.write("\n")
 
-    file = open(directory + "free.txt", "w")
+    file = open(directory + id + "_free.txt", "w")
     for point in freePoints:
         for coord in point:
             file.write("%s " % coord)
         file.write("\n")
 
-    file = open(directory + "enterIndx.txt", "w")
+    file = open(directory + id + "_enterIndx.txt", "w")
     for point in enterIndx:
         file.write("%s" % point)
         file.write("\n")
 
-    file = open(directory + "exitIndx.txt", "w")
+    file = open(directory + id + "_exitIndx.txt", "w")
     for point in exitIndx:
         file.write("%s" % point)
         file.write("\n")
 
-    file = open(directory + "boundIndx.txt", "w")
+    file = open(directory + id + "_boundIndx.txt", "w")
     for point in boundIndx:
         file.write("%s" % point)
         file.write("\n")
 
-    file = open(directory + "freeIndx.txt", "w")
+    file = open(directory + id + "_freeIndx.txt", "w")
     for point in freeIndx:
         file.write("%s" % point)
         file.write("\n")
 
-    matlab_procces = Popen(["octave", "main.m"], cwd="./MatlabGen")
+    print(id)
+    matlab_procces = Popen(
+        ["octave", "--eval", "main('" + id + "')"], cwd="./MatlabGen")
     matlab_procces.wait()
 
-    S1 = np.genfromtxt("./MatlabGen/S11.csv", delimiter=',')
-    S2 = np.genfromtxt("./MatlabGen/S22.csv", delimiter=',')
-    f = np.genfromtxt("./MatlabGen/f.csv", delimiter=',')
+    S1 = np.genfromtxt("./MatlabGen/" + id + "_S11.csv", delimiter=',')
+    S2 = np.genfromtxt("./MatlabGen/" + id + "_S22.csv", delimiter=',')
+    f = np.genfromtxt("./MatlabGen/" + id + "_f.csv", delimiter=',')
     return S1, S2, f
 
 
@@ -273,6 +262,8 @@ if __name__ == "__main__":
 
     worker_number = 3
     threads = [None for _ in range(worker_number)]
+
+    [(2.8, 4.2), (3.44, 2.7), (3.22, 3.45), (2.9, 4.1)]
 
     lock_dictionary = Lock()
     lock_counter = Lock()
