@@ -9,7 +9,11 @@ from subprocess import Popen
 from random import random
 import pickle
 from threading import Thread, Lock, current_thread
+from collections import namedtuple
 from multiprocessing import Manager
+from scipy.signal import savgol_filter
+
+d_arguments = namedtuple("d_arguments", ['d13', 'd2'])
 
 
 def save_obj(obj, name):
@@ -137,6 +141,11 @@ def get_characteristic(width, lsList, dList, epsilon, lcar):
     (points, cells, point_data, cell_data, field_data, pList) = siatka(
         width, lsList, dList, epsilon, lcar)
 
+    print("Number of points:")
+    print(len(points))
+    print("Number of triangles:")
+    print(len(cells['triangle']))
+
     (enterPoints, exitPoints, boundPoints, freePoints, enterIndx, exitIndx,
      boundIndx, freeIndx) = groupPoints(points, pList, lsList, width)
 
@@ -201,7 +210,6 @@ def get_characteristic(width, lsList, dList, epsilon, lcar):
         file.write("%s" % point)
         file.write("\n")
 
-    print(id)
     matlab_procces = Popen(
         ["octave", "--eval", "main('" + id + "')"], cwd="./MatlabGen")
     matlab_procces.wait()
@@ -220,15 +228,28 @@ def get_characteristic_paralel(data, dvariable, lock_dict, dict, lock_counter,
                                counter, max_iteration):
     (width, lsList, epsilon, lcar, f1, f2) = data
     for (d13, d2) in dvariable:
+        d_tuple = d_arguments(d13=d13, d2=d2)
         dList = [d13, d2, d13]
         with lock_counter:
             counter.value = counter.value + 1
             print("iteracja numer :(%d / %d)" % (counter.value, max_iteration))
-        f1_mod, f2_mod, _ = get_characteristic(width, lsList, dList, epsilon,
-                                               lcar)
+        y1, y2, _ = get_characteristic(width, lsList, dList, epsilon, lcar)
+
+        # make it smooth
+        # I think maybe we should think if this works heh
+        # gota find a way
+
+        # we should make sure that there only two local maximums
+        # i didnt check it, just assumed that there are
+        y1_smooth = savgol_filter(y1, 5, 3)
+        mask = np.diff(np.diff(y1_smooth[0])) > 0
+
+        val_max = freq[np.argwhere(mask == True).flatten() + 1]
+        f1_mod = val_max[0]
+        f2_mod = val_max[1]
         score = np.sum(np.absolute(f1 - f1_mod) + np.absolute(f2 - f2_mod))
         s.append(score)
-        dict[score] = (d13, d2)
+        dict[d_tuple] = (score, y1, y2)
 
 
 if __name__ == "__main__":
@@ -236,32 +257,44 @@ if __name__ == "__main__":
     import meshio
 
     verbose = False
-    iteration = 15
+    iteration = 14
 
     width = 6.4
     lsList = [6.4, 3.2, 3.2, 6.4]
-    d13 = 3.3
-    d2 = 4.6
-    dList = [d13, d2, d13]
+    d_tuple = d_arguments(3.4, 2.7)
+    dList = [d_tuple.d13, d_tuple.d2, d_tuple.d13]
     epsilon = 0.01
-    lcar = 0.1
-    f1, f2, freq = get_characteristic(width, lsList, dList, epsilon, lcar)
+    lcar = 0.3
+    y1, y2, freq = get_characteristic(width, lsList, dList, epsilon, lcar)
+
+    # make it smooth
+    # I think maybe we should check if this works heh
+    # i took it from stack i have no idea how does it work
+    y1_smooth = savgol_filter(y1, 5, 3)
+    mask = np.diff(np.diff(y1_smooth[0])) > 0
+    val_max = freq[np.argwhere(mask == True).flatten() + 1]
+    f1 = val_max[0]
+    f2 = val_max[1]
     data = (width, lsList, epsilon, lcar, f1, f2)
-    # plt.plot(freq / 1e-9, f1[0], 'r')
-    # plt.plot(freq / 1e-9, f2[0], 'b')
+
+    # plt.plot(freq / 1e-9, y1_smooth[0], 'r')
+    # plt.plot(freq / 1e-9, y2[0], 'b')
     # plt.show()
 
     d13_array = np.linspace(2.0, 5.0, iteration)
-    d13_array = np.append(d13_array, 3.3)
-    d2_array = np.linspace(3.0, 6.0, iteration)
-    d2_array = np.append(d2_array, 4.6)
+    d13_array = np.append(d13_array, d_tuple.d13)
+    d13_array.sort()
+    d2_array = np.linspace(2.3, 5.5, iteration)
+    d2_array = np.append(d2_array, d_tuple.d2)
+    d2_array.sort()
+
     D13, D2 = np.meshgrid(d13_array, d2_array)
     s = []
     roznica = 10
     max_iteration = (iteration + 1)**2
 
-    worker_number = 3
-    threads = [None for _ in range(worker_number)]
+    worker_number = 4
+    threads = []
 
     [(2.8, 4.2), (3.44, 2.7), (3.22, 3.45), (2.9, 4.1)]
 
@@ -273,18 +306,22 @@ if __name__ == "__main__":
     tuples = list(zip(np.ravel(D13), np.ravel(D2)))
     indx = np.linspace(0, len(tuples), worker_number + 1, dtype=np.int32)
     for worker in range(worker_number):
-        threads[worker] = Thread(
+        thread = Thread(
             target=get_characteristic_paralel,
             args=(data, tuples[indx[worker]:indx[worker + 1]], lock_dictionary,
-                  dict, lock_counter, i, max_iteration)).start()
+                  dict, lock_counter, i, max_iteration))
+        thread.start()
+        threads.append(thread)
 
-    save_obj(dict, 'dic')
+    for thread in threads:
+        thread.join()
+    save_obj(dict, '_f')
     S = np.zeros_like(D13)
     d = dict.copy()
     for key, value in d.items():
-        (k1, k2) = value
-        S[(D13 == k1) & (D2 == k2)] = key
-    S[S == 0] = np.nan
+        (score, y1, y2) = value
+        S[(D13 == key.d13) & (D2 == key.d2)] = score
+
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.plot_surface(D13, D2, S)
