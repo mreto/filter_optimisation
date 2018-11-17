@@ -72,9 +72,9 @@ function [S,f,S11,S21] = Wyznacz_macierz_S(C,T,mesh,siatka_plot, id)
   end
   toc
   figure(5)
-  csvwrite([id,"_f",".csv"], f)
-  csvwrite([id,"_y1",".csv"], S11)
-  csvwrite([id,"_y2",".csv"], S21)
+  csvwrite([id,"_freq",".csv"], f)
+  csvwrite([id,"_charac1",".csv"], S11)
+  csvwrite([id,"_charac2",".csv"], S21)
   plot(f/1e9,S11,'k-'); hold on;
   plot(f/1e9,S21,'r-');
   xlabel('f (GHz)')
