@@ -86,10 +86,6 @@ class Solver:
     def function_complete(self, d13, d2):
         if self.f1_target and self.f2_target is not None:
             f1, f2 = self.compute_function(d13, d2)
-            print("f1")
-            print(f1)
-            print("f2")
-            print(f2)
             score = np.sum(
                 np.absolute(self.f1_target - f1) +
                 np.absolute(self.f2_target - f2))

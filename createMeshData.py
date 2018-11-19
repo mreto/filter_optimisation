@@ -71,8 +71,8 @@ def create_graph():
         thread.start()
         threads.append(thread)
 
-    # for thread in threads:
-    #     thread.join()
+    for thread in threads:
+        thread.join()
 
     # save dict to next session
     save_obj(dict, '_f')
