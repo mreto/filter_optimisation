@@ -1,4 +1,7 @@
 import pickle
+from collections import namedtuple
+
+D_tuple = namedtuple("D_tuple", ['d13', 'd2'])
 
 
 def save_obj(obj, name):

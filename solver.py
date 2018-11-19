@@ -8,11 +8,20 @@ from scipy.signal import savgol_filter
 
 
 class Solver:
-    def __init__(self):
+    def __init__(self, f1_taget=None, f2_target=None, d13=None, d2=None):
         self._width = 6.4
         self._lsList = [6.4, 3.2, 3.2, 6.4]
         self._epsilon = 0.01
         self._lcar = 0.3
+        # TODO napsiac w docach co znacza te argumenty bo to jest tak srednio widoczne
+        # TODO wymyslić jakies lepsze nazwy niż f2 f1, target, wymslic nazwe dobra na
+        # funckje całkowitą
+        if d13 and d2 is not None:
+            self.f1_target, self.f2_target = self.compute_function(d13, d2)
+        elif f1_taget and f2_target is not None:
+            self.f1_target, self.f2_target = f1_taget, f2_target
+        else:
+            self.f1_target, self.f2_target = None, None
 
     def _get_characteristic(self, d_list):
 
@@ -40,10 +49,12 @@ class Solver:
         matlab_procces.wait()
 
         # retrieve the data from the matlab script
-        charac1 = np.genfromtxt("./MatlabGen/" + id + "_charac1.csv", delimiter=',')
-        charac2 = np.genfromtxt("./MatlabGen/" + id + "_charac2.csv", delimiter=',')
+        charac1 = np.genfromtxt(
+            "./MatlabGen/" + id + "_charac1.csv", delimiter=',')
+        charac2 = np.genfromtxt(
+            "./MatlabGen/" + id + "_charac2.csv", delimiter=',')
         freq = np.genfromtxt("./MatlabGen/" + id + "_freq.csv", delimiter=',')
-        return charac1, charac2, freq
+        return charac1, charac2, freq / 1e+9
 
     def _get_local_maxims(self, charac1, freq):
         # make it smooth
@@ -62,7 +73,8 @@ class Solver:
 
     def compute_function(self, d13, d2):
         d_list = [d13, d2, d13]
-        self.charac1, self.charac2, self.freq = self._get_characteristic(d_list)
+        self.charac1, self.charac2, self.freq = self._get_characteristic(
+            d_list)
         self.f1, self.f2 = self._get_local_maxims(self.charac1, self.freq)
         return self.f1, self.f2
 
@@ -70,3 +82,15 @@ class Solver:
         plt.plot(self.f / 1e-9, self.c1[0], 'r')
         plt.plot(self.f / 1e-9, self.c2[0], 'b')
         plt.show()
+
+    def function_complete(self, d13, d2):
+        if self.f1_target and self.f2_target is not None:
+            f1, f2 = self.compute_function(d13, d2)
+            print("f1")
+            print(f1)
+            print("f2")
+            print(f2)
+            score = np.sum(
+                np.absolute(self.f1_target - f1) +
+                np.absolute(self.f2_target - f2))
+            return score
