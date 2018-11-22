@@ -1,5 +1,6 @@
 import pickle
 from collections import namedtuple
+import numpy as np
 
 D_tuple = namedtuple("D_tuple", ['d13', 'd2'])
 

@@ -18,8 +18,8 @@ def create_graph_paralel(data, dvariable):
     for (d13, d2) in dvariable:
         with lock_counter:
             iteration.value = iteration.value + 1
-            print(
-                "iteracja numer :(%d / %d)" % (iteration.value, max_iteration))
+            print("interation number :(%d / %d)" % (iteration.value,
+                                                    max_iteration))
 
         f1_mod, f2_mod = solver.compute_function(d13, d2)
 
