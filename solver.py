@@ -15,6 +15,7 @@ class Solver:
                  d13_target=None,
                  d2_target=None):
         """
+
         Class that task is to solve the goal function.
         The function first compute the f1 and f2 values for d1, d2,
         and the output is the sum(f1_target - f1) + sum(f2_target-f2)
@@ -44,7 +45,8 @@ class Solver:
         self._lcar = 0.3
         self._f1, self._f2 = None, None
         self._charac1, self._charac2, self._freq = None, None, None
-        self._d_list = None
+        self._d_list = [None]
+        self._old_mesh = None
         if d13_target is not None and d2_target is not None:
             self.f1_target, self.f2_target = self.compute_f(
                 d13_target, d2_target)
@@ -103,7 +105,7 @@ class Solver:
         else:
             return (1 - ((y - yc) / (y_max - yc))**2)**(3 / 2)
 
-    def deform(self, trians_id, points, xc, yc, h):
+    def deform(self, points, xc, yc, h):
         """
         change the mesh with the algorithm in ms
         """
@@ -124,22 +126,31 @@ class Solver:
         return new_points
 
     def get_characteristic(self, d_list):
-        # generate the and retrieve all the data
-        if self._d_list is None:
-            self._d_list = d_list
-        else:
-            # TODO uzupełnij deform
-            pass
-        (points, cells, _, _, _, pList) = mesh(
-            self._width, self._lsList, d_list, self._epsilon, self._lcar)
+        # Check if it is possible to deform existing mesh,
+        # otherwise create new
+        if all(d is not None
+               for d in self._d_list) and self._old_mesh is not None:
+            (points, triangles_ids, p_list) = self._old_mesh
+            x = 0.0
+            for l, old_d, new_d in zip(self._lsList, self._d_list, d_list):
+                x += l
+                y = (self._width - old_d) / 2
+                if old_d != new_d:
+                    points = self.deform(points, x, y, new_d - old_d)
 
-        points = np.array(points)
-        triangles_ids = np.array(cells['triangle'])
+                    p_list = self.deform(p_list, x, y, new_d - old_d)
+        else:
+            self._d_list = d_list
+            (points, cells, _, _, _, p_list) = mesh(
+                self._width, self._lsList, d_list, self._epsilon, self._lcar)
+            self._old_mesh = (np.array(points), np.array(cells['triangle']),
+                              p_list)
+            triangles_ids = np.array(cells['triangle'])
 
         # group the point in as we need them in Matlab script
         (enterPoints, exitPoints, boundPoints, freePoints,
          enterIndx, exitIndx, boundIndx, freeIndx) = group_points(
-             points, pList, self._lsList, self._width)
+             points, p_list, self._lsList, self._width)
 
         # each thread saves the file for matlab script with own id to prevent
         # races
@@ -189,10 +200,10 @@ class Solver:
         """
         Print the recent characteristic
         """
-        if self._charac1 or self._charac2 is None:
+        if self._charac1 is None or self._charac2 is None:
             raise ValueError("You didnt computed characteristic yet")
-        plt.plot(self._freq / 1e-9, self.c1[0], 'r')
-        plt.plot(self._freq / 1e-9, self.c2[0], 'b')
+        plt.plot(self._freq, self._charac1[0], 'r')
+        plt.plot(self._freq, self._charac2[0], 'b')
         plt.show()
 
     def goal_function(self, d13, d2):
