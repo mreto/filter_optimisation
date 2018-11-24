@@ -15,8 +15,9 @@ def load_obj(name):
         return pickle.load(f)
 
 
-def savePoints(points, cells, enterPoints, exitPoints, boundPoints, freePoints,
-               enterIndx, exitIndx, boundIndx, freeIndx, directory, id):
+def savePoints(points, triangles_ids, enterPoints, exitPoints, boundPoints,
+               freePoints, enterIndx, exitIndx, boundIndx, freeIndx, directory,
+               id):
     file = open(directory + id + "_points.txt", "w")
     for point in points:
         for coord in point:
@@ -24,7 +25,7 @@ def savePoints(points, cells, enterPoints, exitPoints, boundPoints, freePoints,
         file.write("\n")
 
     file = open(directory + id + "_trian.txt", "w")
-    for trian in cells['triangle']:
+    for trian in triangles_ids:
         for point in trian:
             file.write("%s " % point)
         file.write("\n")

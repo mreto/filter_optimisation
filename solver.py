@@ -1,4 +1,5 @@
 from threading import current_thread
+import pdb
 import matplotlib.pyplot as plt
 import numpy as np
 from subprocess import Popen
@@ -9,7 +10,7 @@ from scipy.signal import savgol_filter
 
 class Solver:
     def __init__(self,
-                 f1_taget=None,
+                 f1_target=None,
                  f2_target=None,
                  d13_target=None,
                  d2_target=None):
@@ -41,94 +42,112 @@ class Solver:
         self._epsilon = 0.01
         # TODO zmien lcar na 0.3 zmieniłem tylko do testów na inne
         self._lcar = 0.3
-        self.f1, self.f2 = None, None
-        self.charac1, self.charac2, self.freq = None, None, None
-        if d13_target and d2_target is not None:
+        self._f1, self._f2 = None, None
+        self._charac1, self._charac2, self._freq = None, None, None
+        self._d_list = None
+        if d13_target is not None and d2_target is not None:
             self.f1_target, self.f2_target = self.compute_f(
                 d13_target, d2_target)
-        elif f1_taget and f2_target is not None:
-            self.f1_target, self.f2_target = f1_taget, f2_target
+        elif f1_target is not None and f2_target is not None:
+            self.f1_target, self.f2_target = f1_target, f2_target
         else:
             raise ValueError("You didnt specified d_list nor f_target")
 
-    def _helper_to_remove(self, d_list):
-        # generate the and retrieve all the data
-        (points, cells, _, _, _, pList) = mesh(
-            self._width, self._lsList, d_list, self._epsilon, self._lcar)
-
-        # group the point in as we need them in Matlab script
-        (enterPoints, exitPoints, boundPoints, freePoints,
-         enterIndx, exitIndx, boundIndx, freeIndx) = group_points(
-             points, pList, self._lsList, self._width)
-
-        # each thread saves the file for matlab script with own id to prevent races
-        id = current_thread().getName()
-        directory = './MatlabGen/Siatka/'
-
-        # save the data to files in the 'directory'
-
-        # TODO change names
-        traingles_id = np.array(cells['triangle'])
-        points_numpy = np.array(points)
+    def get_triangles_angles(self, triangles_ids, points):
+        """
+        return angles in every triangle in the mesh
+        """
         angles = []
-        sum_angles = []
-        sum_absolute = []
-        for traian in traingles_id:
-            p1, p2, p3 = points_numpy[traian[0]], points_numpy[
-                traian[1]], points_numpy[traian[2]]
-            p12 = np.linalg.norm(p1 - p2)
-            p23 = np.linalg.norm(p2 - p3)
-            p13 = np.linalg.norm(p1 - p3)
-            angle1 = np.degrees(
-                np.arccos(np.dot(p1 - p2, p1 - p3) / (p12 * p13)))
-            if angle1 > 180:
-                angle1 = 360 - angle1
-            angle2 = np.degrees(
-                np.arccos(np.dot(p1 - p2, p2 - p3) / (p12 * p23)))
-            if angle2 > 180:
-                angle2 = 360 - angle2
-            angle3 = np.degrees(
-                np.arccos(np.dot(p2 - p3, p1 - p3) / (p23 * p13)))
-            if angle3 > 180:
-                angle3 = 360 - angle3
-            print(angle1)
-            print(angle2)
-            print(angle3)
-            angles.append(angle1)
-            angles.append(angle2)
-            angles.append(angle3)
-            sum_angles.append(angle3 + angle2 + angle1)
-            sum_absolute.append(
-                np.abs(angle3) + np.abs(angle2) + np.abs(angle1))
-        savePoints(points, cells, enterPoints, exitPoints, boundPoints,
-                   freePoints, enterIndx, exitIndx, boundIndx, freeIndx,
-                   directory, id)
-        an = np.array(angles)
-        print(an[np.argmin(an)])
-        plt.hist(angles, 30)
-        plt.show()
-        plt.hist(sum_angles, 30)
-        plt.show()
-        plt.hist(sum_absolute, 30)
-        plt.show()
-        return traingles_id, points_numpy
+        for i, trian_id in enumerate(triangles_ids):
+            p1, p2, p3 = points[trian_id[0]], points[trian_id[1]], points[
+                trian_id[2]]
+            p12 = np.sqrt(np.sum(((p1 - p2)**2)))
+            p23 = np.sqrt(np.sum(((p2 - p3)**2)))
+            p13 = np.sqrt(np.sum(((p1 - p3)**2)))
+            angles1 = np.degrees(
+                np.arccos((p12**2 + p13**2 - p23**2) / (2 * p12 * p13)))
+            angles2 = np.degrees(
+                np.arccos((p12**2 + p23**2 - p13**2) / (2 * p12 * p23)))
+            angles3 = np.degrees(
+                np.arccos((p13**2 + p23**2 - p12**2) / (2 * p13 * p23)))
+            angles.append(angles1)
+            angles.append(angles2)
+            angles.append(angles3)
+        values, _, _ = plt.hist(angles, bins=[i for i in range(0, 180, 10)])
+        return values
+
+    def check_triangles_angles(self, triangles_ids, points):
+        pass
+
+    def fx(self, x, x_max, x_min, xc):
+        """
+        x point in wich we want to compute translation
+        x_max maximal value of x in filter
+        x_min min value of x in filter
+        xc point in which the trasforation was made
+        """
+        if xc > x:
+            return (1 - ((x - xc) / (xc - x_min))**2)**(3 / 2)
+        else:
+            return (1 - ((x - xc) / (x_max - xc))**2)**(3 / 2)
+
+    def fy(self, y, y_max, y_min, yc):
+        """
+        y point in wich we want to compute translation
+        y_max maximal value of y in filter
+        y_min min value of y in filter
+        yc point in which the trasforation was made
+        """
+        if yc > y:
+            return (1 - ((y - yc) / (yc - y_min))**2)**(3 / 2)
+        else:
+            return (1 - ((y - yc) / (y_max - yc))**2)**(3 / 2)
+
+    def deform(self, trians_id, points, xc, yc, h):
+        """
+        change the mesh with the algorithm in ms
+        """
+        x_max = 0
+        for i in self._lsList:
+            x_max += i
+        x_min = 0
+        y_max = self._width
+        y_min = 0
+        new_points = np.zeros_like(points, dtype=np.float_)
+        for i, point in enumerate(points):
+            # in our case the point only moves in one dimension - y
+            # so we only change the point [1]
+            new_points[i][0] = point[0]
+            new_points[i][1] = point[1] + (
+                self.fy(point[1], y_max, y_min, yc) * self.fx(
+                    point[0], x_max, x_min, xc) * h)
+        return new_points
 
     def get_characteristic(self, d_list):
         # generate the and retrieve all the data
+        if self._d_list is None:
+            self._d_list = d_list
+        else:
+            # TODO uzupełnij deform
+            pass
         (points, cells, _, _, _, pList) = mesh(
             self._width, self._lsList, d_list, self._epsilon, self._lcar)
+
+        points = np.array(points)
+        triangles_ids = np.array(cells['triangle'])
 
         # group the point in as we need them in Matlab script
         (enterPoints, exitPoints, boundPoints, freePoints,
          enterIndx, exitIndx, boundIndx, freeIndx) = group_points(
              points, pList, self._lsList, self._width)
 
-        # each thread saves the file for matlab script with own id to prevent races
+        # each thread saves the file for matlab script with own id to prevent
+        # races
         id = current_thread().getName()
         directory = './MatlabGen/Siatka/'
 
         # save the data to files in the 'directory'
-        savePoints(points, cells, enterPoints, exitPoints, boundPoints,
+        savePoints(points, triangles_ids, enterPoints, exitPoints, boundPoints,
                    freePoints, enterIndx, exitIndx, boundIndx, freeIndx,
                    directory, id)
 
@@ -161,30 +180,37 @@ class Solver:
         Compute the f1, f2 (minimum1, and minimum2)
         """
         d_list = [d13, d2, d13]
-        self.charac1, self.charac2, self.freq = self.get_characteristic(d_list)
-        minimum1, minumum2 = self.get_local_minimums(self.charac1, self.freq)
+        self._charac1, self._charac2, self._freq = self.get_characteristic(
+            d_list)
+        minimum1, minumum2 = self.get_local_minimums(self._charac1, self._freq)
         return minimum1, minumum2
 
     def print_characteristic(self):
         """
         Print the recent characteristic
         """
-        if self.charac1 or self.charac2 is None:
+        if self._charac1 or self._charac2 is None:
             raise ValueError("You didnt computed characteristic yet")
-        plt.plot(self.freq / 1e-9, self.c1[0], 'r')
-        plt.plot(self.freq / 1e-9, self.c2[0], 'b')
+        plt.plot(self._freq / 1e-9, self.c1[0], 'r')
+        plt.plot(self._freq / 1e-9, self.c2[0], 'b')
         plt.show()
 
     def goal_function(self, d13, d2):
         """
         Compute the goal function sum(f1_target - f1) + sum(f2_target-f2)
-        The f1_target and f2_target are created only one at the creation
-        of the object, the recent f1 and f2 are stored as members.
+        The f1_target and f2_target are created only once at the creation
+        of the object, the recent f1, f2, charact1 and charact2
+        are stored as members.
         """
         if self.f1_target is None or self.f2_target is None:
             raise ValueError("You didnt specified d_list nor f_target")
-        self.f1, self.f2 = self.compute_f(d13, d2)
+        self._f1, self._f2 = self.compute_f(d13, d2)
         score = np.sum(
-            np.absolute(self.f1_target - self.f1) +
-            np.absolute(self.f2_target - self.f2))
+            np.absolute(self.f1_target - self._f1) +
+            np.absolute(self.f2_target - self._f2))
         return score
+
+    def fu(x):
+        pdb.set_trace()
+        pdb.breakpoint()
+        return x + 1

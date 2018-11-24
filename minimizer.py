@@ -87,7 +87,6 @@ class Minimizer:
         # the score is put into the history
         self._compute_goal_function()
         for i in range(max_steps):
-            # try:
             # in the function computed gradient is put into the history
             self._compute_gradient()
             # in the function new points is put into the history as a new record
@@ -96,8 +95,6 @@ class Minimizer:
             # TODO to jest cringe ale dla testow
             save_obj(self.history, 'history_' + str(step_size))
             print(self.history[-1])
-        # except:
-        #     return self.history
         return self.history
 
 
