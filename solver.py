@@ -128,24 +128,35 @@ class Solver:
     def get_characteristic(self, d_list):
         # Check if it is possible to deform existing mesh,
         # otherwise create new
-        if all(d is not None
-               for d in self._d_list) and self._old_mesh is not None:
-            (points, triangles_ids, p_list) = self._old_mesh
-            x = 0.0
-            for l, old_d, new_d in zip(self._lsList, self._d_list, d_list):
-                x += l
-                y = (self._width - old_d) / 2
-                if old_d != new_d:
-                    points = self.deform(points, x, y, new_d - old_d)
 
-                    p_list = self.deform(p_list, x, y, new_d - old_d)
-        else:
-            self._d_list = d_list
-            (points, cells, _, _, _, p_list) = mesh(
-                self._width, self._lsList, d_list, self._epsilon, self._lcar)
-            self._old_mesh = (np.array(points), np.array(cells['triangle']),
-                              p_list)
-            triangles_ids = np.array(cells['triangle'])
+        # if all(d is not None
+        #        for d in self._d_list) and self._old_mesh is not None:
+
+        #     (points, triangles_ids, p_list) = self._old_mesh
+        #     x = 0.0
+        #     for l, old_d, new_d in zip(self._lsList, self._d_list, d_list):
+        #         x += l
+        #         y = (self._width - old_d) / 2
+        #         if old_d != new_d:
+        #             points = self.deform(points, x, y, new_d - old_d)
+        #             p_list = self.deform(p_list, x, y, new_d - old_d)
+        #         if np.abs(new_d - old_d) > 0.002:
+        #             self._d_list = d_list
+        #             (points, cells, _, _, _, p_list) = mesh(
+        #                 self._width, self._lsList, d_list, self._epsilon,
+        #                 self._lcar)
+        #             self._old_mesh = (np.array(points),
+        #                               np.array(cells['triangle']), p_list)
+        #             triangles_ids = np.array(cells['triangle'])
+        #             break
+        # else:
+        self._d_list = d_list
+        (points, cells, _, _, _, p_list) = mesh(
+            self._width, self._lsList, d_list, self._epsilon, self._lcar)
+        self._old_mesh = (np.array(points), np.array(cells['triangle']),
+                          p_list)
+        triangles_ids = np.array(cells['triangle'])
+        # end of else
 
         # group the point in as we need them in Matlab script
         (enterPoints, exitPoints, boundPoints, freePoints,

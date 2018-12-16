@@ -28,6 +28,22 @@ class Minimizer:
         self.solver = Solver(d13_target=3.4, d2_target=2.7)
         self.h = np.sqrt(np.finfo(float).eps)
 
+    def compute_gradient(self, last_point, last_score, h, function):
+        gradient = np.zeros_like(last_point)
+        for i in range(len(last_point)):
+            point_h = last_point.copy()
+            point_h[i] = float(point_h[i] + h)
+            score_h = function(point_h)
+            while score_h == last_score:
+                h = h * 2
+                point_h[i] = float(point_h[i] + h)
+                score_h = function(point_h)
+                print('the slope is to small, the h is double and it is %f' %
+                      (h))
+                print()
+            gradient[i] = (score_h - last_score) / h
+        return gradient
+
     def _compute_gradient(self):
         """
         IMPORTANT! To use this function there need to be atleast one record in self.history
@@ -35,21 +51,23 @@ class Minimizer:
         """
         gradient = []
         last_point, last_score = self.history[-1][0], self.history[-1][2]
-        for i in range(len(last_point)):
-            point_h = last_point.copy()
-            h = 0.007
-            point_h[i] = float(point_h[i] + h)
-            score_h = self.compute_goal_function(point_h)
-            while score_h == last_score:
-                h = h * 2
-                point_h[i] = float(point_h[i] + h)
-                score_h = self.compute_goal_function(point_h)
-                print('the slope is to small, the h is double and it is %f' %
-                      (h))
-                print()
-            gradient.append((score_h - last_score) / h)
+        h = 0.001
+        gradient = self.compute_gradient(
+            last_point,
+            last_score,
+            h,
+            self.compute_goal_function,
+        )
         self.history[-1][1] = gradient
         return gradient
+
+    def line_search(self, q, last_score, gradient, derivative_step):
+        """
+        return the size of the step, according to line search algorithm
+        """
+        lambda_a = lambda a, q, f_0, gradient: f_0 + q * (gradient).dot(-gradient) * a
+        # approx = lambda a, gradient: f_0 + a * (gradient).dot(-gradient)
+        # while lambda_a(a)<
 
     def compute_goal_function(self, args):
         """
@@ -69,6 +87,7 @@ class Minimizer:
         it into it.
         """
         point = self.history[-1][0]
+        print(point)
         score = self.compute_goal_function(point)
         self.history[-1][2] = score
         return score
@@ -94,10 +113,10 @@ class Minimizer:
             self._compute_goal_function()
             # TODO to jest cringe ale dla testow
             save_obj(self.history, 'history_' + str(step_size))
-            print(self.history[-1])
+            print(self.history)
         return self.history
 
 
 if __name__ == "__main__":
     m = Minimizer()
-    hist = m.minimize(4.5, 4.5, 50, 0.06)
+    hist = m.minimize(4.5, 4.5, 50, 0.03)
