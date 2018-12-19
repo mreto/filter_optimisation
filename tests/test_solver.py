@@ -42,7 +42,6 @@ def test_deform_squere_4_trangles():
     s._lslist = [1, 1]
     s._width = 2
     points = np.array([[0, 0], [2, 0], [2, 2], [0, 2], [1, 1]])
-    triangles_id = [[0, 1, 4], [1, 2, 4], [2, 3, 4], [0, 4, 3]]
 
     # the point in which we change the geometry of the filter
     xc, yc = 1, 1
@@ -50,7 +49,7 @@ def test_deform_squere_4_trangles():
     # move of the architecture e.g h in computing derivative
     h = 0.001
 
-    new_points = s.deform(triangles_id, points, xc, yc, h)
+    new_points = s.deform(points, xc, yc, h)
 
     # the points on border stay the same, only the middle
     # point change by the amout of h
@@ -64,7 +63,6 @@ def test_deform_squere_4_trangles_yc_point_smaller():
     s._lslist = [1, 1]
     s._width = 2
     points = np.array([[0, 0], [2, 0], [2, 2], [0, 2], [1, 1]])
-    triangles_id = [[0, 1, 4], [1, 2, 4], [2, 3, 4], [0, 4, 3]]
 
     # the point in which we change the geometry of the filter
     xc, yc = 1, 0.5
@@ -72,7 +70,7 @@ def test_deform_squere_4_trangles_yc_point_smaller():
     # move of the architecture e.g h in computing derivative
     h = 0.001
 
-    new_points = s.deform(triangles_id, points, xc, yc, h)
+    new_points = s.deform(points, xc, yc, h)
 
     # the points on border stay the same, only the middle
     # point change by the amout of h
@@ -109,11 +107,3 @@ def test_get_triangle_angles_triangle_case_21_34_123():
     assert (v[3] == 1)
     # One angle is 123 deegree
     assert (v[12] == 1)
-
-
-def test_check_how_visualy_looks_deformated_with_normal():
-    assert (1 == 0)
-
-
-def test_write_test_to_every_fucikin_function():
-    assert (1 == 0)
