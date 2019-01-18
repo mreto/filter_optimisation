@@ -128,35 +128,47 @@ class Solver:
     def get_characteristic(self, d_list):
         # Check if it is possible to deform existing mesh,
         # otherwise create new
+        if all(d is not None
+               for d in self._d_list) and self._old_mesh is not None:
 
-        # if all(d is not None
-        #        for d in self._d_list) and self._old_mesh is not None:
-
-        #     (points, triangles_ids, p_list) = self._old_mesh
-        #     x = 0.0
-        #     for l, old_d, new_d in zip(self._lsList, self._d_list, d_list):
-        #         x += l
-        #         y = (self._width - old_d) / 2
-        #         if old_d != new_d:
-        #             points = self.deform(points, x, y, new_d - old_d)
-        #             p_list = self.deform(p_list, x, y, new_d - old_d)
-        #         if np.abs(new_d - old_d) > 0.002:
-        #             self._d_list = d_list
-        #             (points, cells, _, _, _, p_list) = mesh(
-        #                 self._width, self._lsList, d_list, self._epsilon,
-        #                 self._lcar)
-        #             self._old_mesh = (np.array(points),
-        #                               np.array(cells['triangle']), p_list)
-        #             triangles_ids = np.array(cells['triangle'])
-        #             break
-        # else:
-        self._d_list = d_list
-        (points, cells, _, _, _, p_list) = mesh(
-            self._width, self._lsList, d_list, self._epsilon, self._lcar)
-        self._old_mesh = (np.array(points), np.array(cells['triangle']),
-                          p_list)
-        triangles_ids = np.array(cells['triangle'])
-        # end of else
+            (points, triangles_ids, p_list) = self._old_mesh
+            x = 0.0
+            for l, old_d, new_d in zip(self._lsList, self._d_list, d_list):
+                x += l
+                if old_d != new_d:
+                    y = (self._width - old_d) / 2
+                    # TODO sprawdz ostatni agrument deform jak bedziesz w lepszym stanie
+                    # deform the bottom edge of the filter
+                    points_bottom = self.deform(points, x, y,
+                                                (old_d - new_d) / 2)
+                    p_list_bottom = self.deform(p_list, x, y,
+                                                (old_d - new_d) / 2)
+                    # deform the top edge of the filter
+                    y = self._width - y
+                    points_top = self.deform(points, x, y, (new_d - old_d) / 2)
+                    p_list_top = self.deform(p_list, x, y, (new_d - old_d) / 2)
+                    # get the mean of the deformation
+                    points = (points_top + points_bottom) / 2
+                    p_list = (p_list_top + p_list_bottom) / 2
+                # im not sure what condition to set to stop deforming so for
+                # now I just use the distance from initial mesh parametrs
+                maximum_distance = 0.08
+                if np.abs(new_d - old_d) > maximum_distance:
+                    self._d_list = d_list
+                    (points, cells, _, _, _, p_list) = mesh(
+                        self._width, self._lsList, d_list, self._epsilon,
+                        self._lcar)
+                    self._old_mesh = (np.array(points),
+                                      np.array(cells['triangle']), p_list)
+                    triangles_ids = np.array(cells['triangle'])
+                    break
+        else:
+            self._d_list = d_list
+            (points, cells, _, _, _, p_list) = mesh(
+                self._width, self._lsList, d_list, self._epsilon, self._lcar)
+            self._old_mesh = (np.array(points), np.array(cells['triangle']),
+                              p_list)
+            triangles_ids = np.array(cells['triangle'])
 
         # group the point in as we need them in Matlab script
         (enterPoints, exitPoints, boundPoints, freePoints,

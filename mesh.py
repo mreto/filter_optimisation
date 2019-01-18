@@ -33,7 +33,11 @@ def mesh(w, l_list, d_list, epsilon, lcar):
     list_top.append([x, w, 0.0])
     list_top.reverse()
     geom.add_polygon(list_down + list_top, lcar=lcar)  #0.25 is quite decent
-    geom.add_raw_code('Mesh.Algorithm=3;')
+    geom.add_raw_code('Mesh.Algorithm = 6;')
+    # geom.add_raw_code('Mesh.AllowSwapAngle = 15;')
+    geom.add_raw_code('Mesh.Smoothing = 0;')
+    # geom.add_raw_code('Mesh.ElementOrder = 1;')
+
     if os.name == 'posix':
         points, cells, point_data, cell_data, field_data = pygmsh.generate_mesh(
             geom)
